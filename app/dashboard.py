@@ -201,7 +201,7 @@ with tab1:
     ec1.success(f"**Inflation Compass (40%)**\n\n{cs['Inflation_Compass']}")
     ec2.info(f"**Dual Momentum (30%)**\n\n{cs['Dual_Momentum']}")
     ec3.warning(f"**ZeroLag Trend (15%)**\n\n{cs['ZeroLag_Trend']}")
-    ec4.secondary(f"**BAA-G4 (15%)**\n\n{cs['BAA_G4']}")
+    ec4.info(f"**BAA-G4 (15%)**\n\n{cs['BAA_G4']}")
 
 
 # ─────────────────────────────────────────────────────────────────────────────
