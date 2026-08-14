@@ -121,22 +121,30 @@ class QuantAuditTestSuite(unittest.TestCase):
         actual = score.loc[dates[-1], "TEST"]
         self.assertAlmostEqual(actual, expected, places=4, msg="13612W 가중 모멘텀 계산식이 켈러 공식과 불일치합니다!")
 
-    def test_06_hybrid_option_b_reproducibility(self):
-        """[검증 6] Option B (40/30/15/15) 하이브리드 전략의 결정론적 재현성 검증"""
+    def test_06_hybrid_master_reproducibility(self):
+        """[검증 6] Master Pure Monthly (55/30/15) 및 Option B 결정론적 재현성 검증"""
         w_ic = ic_v1_weights(self.prices, self.fred)
         w_dm = dm_v0_weights(self.prices, self.fred)
-        w_zl = zerolag_opt_weights(self.prices, self.fred)
         w_baa = baa_opt_weights(self.prices, self.fred)
+        w_zl = zerolag_opt_weights(self.prices, self.fred)
 
+        # 1. Master Pure Monthly (55/30/15)
+        w_master = w_ic * 0.55 + w_dm * 0.30 + w_baa * 0.15
+        res_master = self.engine.run(self.prices, w_master, start_date=self.start_date, end_date=self.end_date)
+        m_m = res_master["metrics_net"]
+
+        self.assertTrue(0.175 <= m_m["CAGR"] <= 0.195, f"Master CAGR이 예상 범위(17.5~19.5%)를 벗어남: {m_m['CAGR']}")
+        self.assertTrue(-0.25 <= m_m["MDD"] <= -0.19, f"Master MDD가 예상 범위(-19~-25%)를 벗어남: {m_m['MDD']}")
+        self.assertTrue(m_m["Sharpe"] >= 1.0, f"Master Sharpe가 1.0 미만임: {m_m['Sharpe']}")
+        self.assertTrue(m_m["Calmar"] >= 0.80, f"Master Calmar가 0.80 미만임: {m_m['Calmar']}")
+
+        # 2. Option B (40/30/15/15)
         w_opt_b = w_ic * 0.40 + w_dm * 0.30 + w_zl * 0.15 + w_baa * 0.15
-        res = self.engine.run(self.prices, w_opt_b, start_date=self.start_date, end_date=self.end_date)
-        m = res["metrics_net"]
+        res_b = self.engine.run(self.prices, w_opt_b, start_date=self.start_date, end_date=self.end_date)
+        m_b = res_b["metrics_net"]
 
-        # 지표 범위 검증 (1.0x 순수 무레버리지 기준: CAGR ~17.0%, MDD -18~-24%)
-        self.assertTrue(0.165 <= m["CAGR"] <= 0.19, f"Option B CAGR이 예상 범위(16.5~19%)를 벗어남: {m['CAGR']}")
-        self.assertTrue(-0.25 <= m["MDD"] <= -0.17, f"Option B MDD가 예상 범위(-17~-25%)를 벗어남: {m['MDD']}")
-        self.assertTrue(m["Sharpe"] >= 1.0, f"Option B Sharpe가 1.0 미만임: {m['Sharpe']}")
-        self.assertTrue(m["Calmar"] >= 0.80, f"Option B Calmar가 0.80 미만임: {m['Calmar']}")
+        self.assertTrue(0.165 <= m_b["CAGR"] <= 0.19, f"Option B CAGR이 예상 범위(16.5~19%)를 벗어남: {m_b['CAGR']}")
+        self.assertTrue(-0.25 <= m_b["MDD"] <= -0.17, f"Option B MDD가 예상 범위(-17~-25%)를 벗어남: {m_b['MDD']}")
 
 
 if __name__ == "__main__":

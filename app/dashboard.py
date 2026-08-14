@@ -18,9 +18,8 @@ sys.path.insert(0, str(BASE_DIR))
 from src.data_loader.master_loader import load_yahoo_prices, load_fred_series
 from src.backtest.engine import BacktestEngine
 from src.production.signal_generator import get_latest_signals
-from src.production.korea_pension_mapper import map_us_to_kr_etf
 from run_individual_deep_optimization import (
-    ic_v1_weights, baa_opt_weights, zerolag_opt_weights, dm_v0_weights, gb_v1_weights
+    ic_v1_weights, baa_opt_weights, zerolag_opt_weights, dm_v0_weights
 )
 
 
@@ -38,27 +37,31 @@ st.sidebar.title("🏛️ Quant Master Control")
 st.sidebar.markdown("---")
 
 strat_type = st.sidebar.radio(
-    "운용 전략 타입 선택",
-    ("🚀 타입 1: Dynamic Alpha (Option B: 40/30/15/15)", "☕ 타입 2: Pure Monthly (100% 완전 월간 전용)")
+    "운용 전략 선택",
+    (
+        "👑 마스터 전략: Master Pure Monthly (55/30/15)",
+        "🚀 Option B: Dynamic Alpha (40/30/15/15)"
+    )
 )
 
 capital = st.sidebar.number_input("운용 자산 규모 (USD)", min_value=1000.0, max_value=10000000.0, value=100000.0, step=10000.0)
 
 st.sidebar.markdown("---")
 st.sidebar.markdown("### ⚙️ 전략 구성 가중치")
-if "타입 1" in strat_type:
-    st.sidebar.info(
-        "• **Inflation Compass (V1):** 40%\n"
+if "마스터" in strat_type:
+    st.sidebar.success(
+        "• **Inflation Compass (V1):** 55%\n"
         "• **Dual Momentum (V0):** 30%\n"
-        "• **ZeroLag Trend (V2):** 15% (일간 기동대)\n"
-        "• **BAA-G4 (V2):** 15%"
+        "• **BAA-G4 (V2):** 15%\n\n"
+        "*(100% 완전 월간 전용 | CAGR 18.1% | MDD -21.8%)*"
     )
 else:
     st.sidebar.info(
-        "• **Inflation Compass (V1):** 35%\n"
-        "• **BAA-G4 (V2):** 30%\n"
-        "• **Dual Momentum (V0):** 20%\n"
-        "• **Golden Butterfly (V1):** 15%"
+        "• **Inflation Compass (V1):** 40%\n"
+        "• **Dual Momentum (V0):** 30%\n"
+        "• **ZeroLag Trend (1x):** 15% (일간 기동대)\n"
+        "• **BAA-G4 (V2):** 15%\n\n"
+        "*(월 85% + 일간 15% | CAGR 17.0% | MDD -19.7%)*"
     )
 
 st.sidebar.markdown("---")
@@ -78,9 +81,8 @@ def load_all_backtest_data():
 
     w_ic = ic_v1_weights(prices, fred)
     w_dm = dm_v0_weights(prices, fred)
-    w_zl = zerolag_opt_weights(prices, fred)
     w_baa = baa_opt_weights(prices, fred)
-    w_gb = gb_v1_weights(prices, fred)
+    w_zl = zerolag_opt_weights(prices, fred)
 
     w_spy = pd.DataFrame(0.0, index=prices.index, columns=prices.columns)
     w_spy["SPY"] = 1.0
@@ -89,30 +91,31 @@ def load_all_backtest_data():
     w_6040["SPY"] = 0.60
     w_6040["IEF"] = 0.40
 
-    w_t1 = w_ic * 0.40 + w_dm * 0.30 + w_zl * 0.15 + w_baa * 0.15
-    w_t2 = w_ic * 0.35 + w_baa * 0.30 + w_dm * 0.20 + w_gb * 0.15
+    # 마스터 전략 (55/30/15) & Option B (40/30/15/15)
+    w_master = w_ic * 0.55 + w_dm * 0.30 + w_baa * 0.15
+    w_optb = w_ic * 0.40 + w_dm * 0.30 + w_zl * 0.15 + w_baa * 0.15
 
     start_date = "2003-04-01"
     end_date = prices.index[-1].strftime("%Y-%m-%d")
 
     res_spy = engine.run(prices, w_spy, start_date=start_date, end_date=end_date)
     res_6040 = engine.run(prices, w_6040, start_date=start_date, end_date=end_date)
-    res_t1 = engine.run(prices, w_t1, start_date=start_date, end_date=end_date)
-    res_t2 = engine.run(prices, w_t2, start_date=start_date, end_date=end_date)
+    res_master = engine.run(prices, w_master, start_date=start_date, end_date=end_date)
+    res_optb = engine.run(prices, w_optb, start_date=start_date, end_date=end_date)
 
     return {
         "prices": prices,
         "SPY": res_spy,
         "6040": res_6040,
-        "Type1": res_t1,
-        "Type2": res_t2,
+        "Master": res_master,
+        "OptionB": res_optb,
         "start_date": start_date,
         "end_date": end_date
     }
 
 
 data = load_all_backtest_data()
-current_res = data["Type1"] if "타입 1" in strat_type else data["Type2"]
+current_res = data["Master"] if "마스터" in strat_type else data["OptionB"]
 m = current_res["metrics_net"]
 signals = get_latest_signals(capital_usd=capital)
 
@@ -139,7 +142,7 @@ st.markdown("---")
 # ─────────────────────────────────────────────────────────────────────────────
 tab1, tab2, tab3, tab4, tab5 = st.tabs([
     "📡 오늘의 실전 매매 주문표",
-    "🏆 29개 전략 그랜드 토너먼트 랭킹",
+    "🏆 32개 전략 그랜드 토너먼트 랭킹",
     "📈 성과 & 리스크 심층 분석",
     "🛡️ 4대 위기 스트레스 테스트",
     "📚 이론적 배경 & 감사 보고서"
@@ -151,26 +154,12 @@ tab1, tab2, tab3, tab4, tab5 = st.tabs([
 with tab1:
     st.subheader(f"📡 [오늘의 실전 매매 주문표] (기준 종가 일자: `{signals['latest_date']}`)")
 
-    order_df = signals["type1_table"] if "타입 1" in strat_type else signals["type2_table"]
-    
-    # 국내 연금 매핑 컬럼 추가
-    kr_codes = []
-    kr_names = []
-    asset_types = []
-    for t in order_df["Ticker"]:
-        k_info = map_us_to_kr_etf(t)
-        kr_codes.append(k_info["kr_code"])
-        kr_names.append(k_info["kr_name"])
-        asset_types.append(k_info["asset_type"])
-
-    order_df["국내티커"] = kr_codes
-    order_df["국내 연금저축/IRP 매핑 ETF명"] = kr_names
-    order_df["자산 분류"] = asset_types
+    order_df = signals["master_table"] if "마스터" in strat_type else signals["optb_table"]
 
     c_left, c_right = st.columns([2, 1])
     with c_left:
         st.dataframe(
-            order_df[["Ticker", "Weight_Pct", "Current_Price", "Target_Value_USD", "Shares_to_Hold", "국내티커", "국내 연금저축/IRP 매핑 ETF명", "자산 분류"]].rename(
+            order_df[["Ticker", "Weight_Pct", "Current_Price", "Target_Value_USD", "Shares_to_Hold"]].rename(
                 columns={
                     "Ticker": "미국 티커",
                     "Weight_Pct": "목표 비중",
@@ -188,27 +177,27 @@ with tab1:
             order_df,
             values="Target_Weight",
             names="Ticker",
-            title="자산 배분 도넛 차트",
+            title="자산 배분 비중",
             hole=0.45,
             color_discrete_sequence=px.colors.qualitative.Prism
         )
         fig_pie.update_traces(textposition='inside', textinfo='percent+label')
         st.plotly_chart(fig_pie, use_container_width=True)
 
-    st.markdown("### 🔍 4대 하부 엔진 현재 상태")
+    st.markdown("### 🔍 주요 엔진 현재 상태")
     cs = signals["component_status"]
     ec1, ec2, ec3, ec4 = st.columns(4)
-    ec1.success(f"**Inflation Compass (40%)**\n\n{cs['Inflation_Compass']}")
+    ec1.success(f"**Inflation Compass (55%)**\n\n{cs['Inflation_Compass']}")
     ec2.info(f"**Dual Momentum (30%)**\n\n{cs['Dual_Momentum']}")
-    ec3.warning(f"**ZeroLag Trend (15%)**\n\n{cs['ZeroLag_Trend']}")
-    ec4.info(f"**BAA-G4 (15%)**\n\n{cs['BAA_G4']}")
+    ec3.info(f"**BAA-G4 (15%)**\n\n{cs['BAA_G4']}")
+    ec4.warning(f"**ZeroLag Trend (보조)**\n\n{cs['ZeroLag_Trend']}")
 
 
 # ─────────────────────────────────────────────────────────────────────────────
-# TAB 2: 29개 전략 그랜드 토너먼트 랭킹
+# TAB 2: 32개 전략 그랜드 토너먼트 랭킹
 # ─────────────────────────────────────────────────────────────────────────────
 with tab2:
-    st.subheader("🏆 [20년 은퇴 연금 퀀트 자산배분 그랜드 토너먼트 종합 랭킹]")
+    st.subheader("🏆 [20년 은퇴 연금 퀀트 자산배분 그랜드 토너먼트 종합 랭킹 (100% 무레버리지)]")
     st.caption("23.3년간의 실전 30bp 수수료 차감 후 CAGR, Sharpe, MDD, Calmar, 위기방어력을 종합 평가한 순위표입니다.")
 
     report_path = BASE_DIR / "output" / "grand_pension_tournament_report.md"
