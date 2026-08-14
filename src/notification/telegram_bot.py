@@ -33,33 +33,33 @@ def load_env():
 
 
 def build_telegram_message(capital_usd: float = 100000.0) -> str:
-    """오늘의 텔레그램 마크다운 브리핑 메시지 생성."""
+    """오늘의 텔레그램 모바일 특화 컴팩트 브리핑 메시지 생성."""
     sig = get_latest_signals(capital_usd=capital_usd)
     dt = sig["latest_date"]
     cs = sig["component_status"]
 
-    lines = []
-    lines.append(f"🏛️ *[Quant Master] 20년 은퇴 연금 데일리 브리핑*")
-    lines.append(f"📅 기준일자: `{dt}` | 💵 운용자산: `${capital_usd:,.0f} USD`")
-    lines.append("━" * 28)
-
-    # 1. 거시 시장 레짐 상태
-    lines.append("\n📊 *[거시 시장 레짐 판정]*")
     ic_status = cs.get("Inflation_Compass", {})
     if "XLK" in ic_status:
-        lines.append("• *경기/물가 레짐:* 디스인플레 성장 (XLK 기술주 주도 🟢)")
+        regime_desc = "디스인플레 성장 (XLK 🟢)"
     elif "XLE" in ic_status:
-        lines.append("• *경기/물가 레짐:* 리플레이션 (XLE 에너지 주도 🔴)")
+        regime_desc = "리플레이션 (XLE 🔴)"
     elif "XLU" in ic_status:
-        lines.append("• *경기/물가 레짐:* 스태그플레이션 (XLU 유틸리티/금 방어 🟡)")
+        regime_desc = "스태그플레이션 (XLU/GLD 🟡)"
     else:
-        lines.append("• *경기/물가 레짐:* 디플레이션 침체 (XLP/채권 안전 방어 🔵)")
+        regime_desc = "디플레이션 침체 (XLP/채권 🔵)"
 
-    # 2. 마스터 전략 브리핑 (Master Pure Monthly 55/30/15)
-    lines.append("\n👑 *[마스터 전략] Master Pure Monthly (55/30/15)*")
-    lines.append("_(IC 55% + DM 30% + BAA 15% | CAGR 18.1% | MDD -21.8%)_")
-    lines.append("• *운용:* 100% 매월 마지막 거래일 장 마감 후 월 1회 리밸런싱\n")
+    lines = []
+    lines.append(f"🏛️ *Quant Master 연금 브리핑*")
+    lines.append(f"📅 `{dt}` ｜ 💵 `${capital_usd:,.0f}`")
+    lines.append(f"• 레짐: *{regime_desc}*")
+    lines.append("─────────────────────")
+    lines.append("👑 *Master Pure (55/30/15)*")
+    lines.append("`CAGR 18.1% │ MDD -21.8% │ 월 1회`\n")
 
+    # 고정폭 모바일 테이블 생성 (모바일 화면 가로 30자 이내 완벽 정렬)
+    table_lines = ["```"]
+    table_lines.append("종목   비중     금액($)   수량   현재가")
+    table_lines.append("──────────────────────────────────")
     df_master = sig["master_table"]
     for _, row in df_master.iterrows():
         t = row["Ticker"]
@@ -67,12 +67,13 @@ def build_telegram_message(capital_usd: float = 100000.0) -> str:
         val = row["Target_Value_USD"]
         px = row["Current_Price"]
         shares = row["Shares_to_Hold"]
-        lines.append(f"• *{t}* ({w}): `${val:,.0f}` (현재가 `${px:.2f}` ➔ *{shares}주*)")
+        table_lines.append(f"{t:<4} {w:>6}  ${val:>6,.0f}  {shares:>4}주  ${px:>5.1f}")
+    table_lines.append("```")
 
-    lines.append("\n" + "━" * 28)
-    lines.append("💡 *실전 운용 권장:*")
-    lines.append("• 매월 말일 종가 기준으로 해당 종목의 목표 비중대로 매수/리밸런싱하십시오.")
-    lines.append("• 웹 대시보드: `http://localhost:8501`")
+    lines.append("\n".join(table_lines))
+    lines.append("─────────────────────")
+    lines.append("💡 *매월 마지막 거래일 장마감 후 리밸런싱*")
+    lines.append("🌐 대시보드: `http://localhost:8501`")
 
     return "\n".join(lines)
 
