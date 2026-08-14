@@ -152,45 +152,50 @@ tab1, tab2, tab3, tab4, tab5 = st.tabs([
 # TAB 1: 오늘의 실전 매매 주문표
 # ─────────────────────────────────────────────────────────────────────────────
 with tab1:
-    st.subheader(f"📡 [오늘의 실전 매매 주문표] (기준 종가 일자: `{signals['latest_date']}`)")
+    latest_date_str = signals.get("latest_date", "")
+    st.subheader(f"📡 [오늘의 실전 매매 주문표] (기준 종가 일자: `{latest_date_str}`)")
 
-    order_df = signals["master_table"] if "마스터" in strat_type else signals["optb_table"]
+    if "마스터" in strat_type:
+        order_df = signals.get("master_table", signals.get("type1_table", pd.DataFrame()))
+    else:
+        order_df = signals.get("optb_table", signals.get("type2_table", pd.DataFrame()))
 
-    c_left, c_right = st.columns([2, 1])
-    with c_left:
-        st.dataframe(
-            order_df[["Ticker", "Weight_Pct", "Current_Price", "Target_Value_USD", "Shares_to_Hold"]].rename(
-                columns={
-                    "Ticker": "미국 티커",
-                    "Weight_Pct": "목표 비중",
-                    "Current_Price": "현재가 ($)",
-                    "Target_Value_USD": "목표 금액 ($)",
-                    "Shares_to_Hold": "매수 주수"
-                }
-            ),
-            use_container_width=True,
-            hide_index=True
-        )
+    if not order_df.empty:
+        c_left, c_right = st.columns([2, 1])
+        with c_left:
+            st.dataframe(
+                order_df[["Ticker", "Weight_Pct", "Current_Price", "Target_Value_USD", "Shares_to_Hold"]].rename(
+                    columns={
+                        "Ticker": "미국 티커",
+                        "Weight_Pct": "목표 비중",
+                        "Current_Price": "현재가 ($)",
+                        "Target_Value_USD": "목표 금액 ($)",
+                        "Shares_to_Hold": "매수 주수"
+                    }
+                ),
+                use_container_width=True,
+                hide_index=True
+            )
 
-    with c_right:
-        fig_pie = px.pie(
-            order_df,
-            values="Target_Weight",
-            names="Ticker",
-            title="자산 배분 비중",
-            hole=0.45,
-            color_discrete_sequence=px.colors.qualitative.Prism
-        )
-        fig_pie.update_traces(textposition='inside', textinfo='percent+label')
-        st.plotly_chart(fig_pie, use_container_width=True)
+        with c_right:
+            fig_pie = px.pie(
+                order_df,
+                values="Target_Weight",
+                names="Ticker",
+                title="자산 배분 비중",
+                hole=0.45,
+                color_discrete_sequence=px.colors.qualitative.Prism
+            )
+            fig_pie.update_traces(textposition='inside', textinfo='percent+label')
+            st.plotly_chart(fig_pie, use_container_width=True)
 
     st.markdown("### 🔍 주요 엔진 현재 상태")
-    cs = signals["component_status"]
+    cs = signals.get("component_status", {})
     ec1, ec2, ec3, ec4 = st.columns(4)
-    ec1.success(f"**Inflation Compass (55%)**\n\n{cs['Inflation_Compass']}")
-    ec2.info(f"**Dual Momentum (30%)**\n\n{cs['Dual_Momentum']}")
-    ec3.info(f"**BAA-G4 (15%)**\n\n{cs['BAA_G4']}")
-    ec4.warning(f"**ZeroLag Trend (보조)**\n\n{cs['ZeroLag_Trend']}")
+    ec1.success(f"**Inflation Compass (55%)**\n\n{cs.get('Inflation_Compass', {})}")
+    ec2.info(f"**Dual Momentum (30%)**\n\n{cs.get('Dual_Momentum', {})}")
+    ec3.info(f"**BAA-G4 (15%)**\n\n{cs.get('BAA_G4', {})}")
+    ec4.warning(f"**ZeroLag Trend (보조)**\n\n{cs.get('ZeroLag_Trend', {})}")
 
 
 # ─────────────────────────────────────────────────────────────────────────────
