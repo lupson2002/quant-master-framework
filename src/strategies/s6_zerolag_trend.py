@@ -68,25 +68,17 @@ class ZeroLagTrendV2(BaseStrategy):
         for i in range(105, len(prices_daily)):
             d = prices_daily.index[i]
             if regime_bull.iloc[i]:
-                # 변동성이 높으면(25% 이상) QLD(2x) 대신 QQQ(1x)로 다운시프트하여 계좌 보존
-                current_vol = vol20.iloc[i]
-                if not np.isnan(current_vol) and current_vol > 0.25:
-                    weights.loc[d, "QQQ"] = 1.0
-                else:
-                    if "QLD" in weights.columns:
-                        weights.loc[d, "QLD"] = 1.0
-                    else:
-                        weights.loc[d, "QQQ"] = 2.0
+                weights.loc[d, "QQQ"] = 1.0
             else:
-                # 방어 시 상위 2개 자산에 50:50 분산
-                scores = mom55.loc[d].dropna().sort_values(ascending=False)
-                valid = scores[scores > 0]
-                if len(valid) >= 2:
-                    weights.loc[d, valid.index[0]] = 0.5
-                    weights.loc[d, valid.index[1]] = 0.5
-                elif len(valid) == 1:
-                    weights.loc[d, valid.index[0]] = 0.5
-                    weights.loc[d, "BIL" if "BIL" in weights.columns else "SHY"] = 0.5
+                def_risky = [a for a in ["TLT", "USO", "GLD"] if a in mom55.columns and not np.isnan(mom55.loc[d, a]) and mom55.loc[d, a] > 0]
+                sorted_risky = mom55.loc[d, def_risky].sort_values(ascending=False) if def_risky else pd.Series(dtype=float)
+
+                if len(sorted_risky) >= 2:
+                    weights.loc[d, sorted_risky.index[0]] = 0.5
+                    weights.loc[d, sorted_risky.index[1]] = 0.5
+                elif len(sorted_risky) == 1:
+                    weights.loc[d, sorted_risky.index[0]] = 0.5
+                    weights.loc[d, "BIL" if "BIL" in weights.columns else "SHY"] += 0.5
                 else:
                     weights.loc[d, "BIL" if "BIL" in weights.columns else "SHY"] = 1.0
 

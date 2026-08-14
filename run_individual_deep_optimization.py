@@ -225,14 +225,14 @@ def baa_opt_weights(prices_daily, fred_data):
             off_ratio = 1.0 if pos_cnt == 3 else 0.66
             def_ratio = 1.0 - off_ratio
             top1 = rel_mom.loc[d, ["QQQ", "EFA", "EEM"]].idxmax()
-            weights_m.loc[d, top1] = off_ratio * 1.25
+            weights_m.loc[d, top1] = off_ratio
 
             if def_ratio > 0:
                 for da in defense_assets:
                     if da in weights_m.columns:
                         weights_m.loc[d, da] += def_ratio / 3.0
         else:
-            # 100% 방어
+            # 100% 방어 (BIL, TLT, GLD 3대 자산 균등 배분)
             for da in defense_assets:
                 if da in weights_m.columns:
                     weights_m.loc[d, da] = 1.0 / 3.0
@@ -240,7 +240,7 @@ def baa_opt_weights(prices_daily, fred_data):
 
 
 # ─────────────────────────────────────────────────────────────────────────────
-# 4. ZeroLag Trend 단독 개선: Hysteresis Band & Volatility Cap
+# 4. ZeroLag Trend 단독 개선: Hysteresis Band & 1.0x Pure Allocation
 # ─────────────────────────────────────────────────────────────────────────────
 
 def zerolag_v1_weights(prices_daily, fred_data):
@@ -265,15 +265,14 @@ def zerolag_v1_weights(prices_daily, fred_data):
 
 
 def zerolag_opt_weights(prices_daily, fred_data):
-    """ZeroLag 단독 최적화:
+    """ZeroLag 단독 최적화 (1.0x 무레버리지 정수 배분):
     1. ±1.5% Hysteresis 완충 밴드로 잦은 매매 휩소 방지 (턴오버 31회 -> 8회로 축소)
-    2. 20일 변동성 > 25% 시 QLD(2x) 대신 QQQ(1x)로 다운시프트
-    3. 방어 시 55일 모멘텀 상위 2개 분산
+    2. 상승 시 QQQ 100% (1.0x) 보유
+    3. 방어 시 모멘텀 양수 방어자산에 분산, 미달 시 100% BIL(현금) 안전 배분 (가중치 합 1.0 보장)
     """
     qqq = prices_daily["QQQ"]
     zlema_105 = compute_zlema(qqq, period=105)
-    vol20 = qqq.pct_change().rolling(20).std() * np.sqrt(252)
-    mom55 = prices_daily[["TLT", "BIL", "USO", "GLD"]].pct_change(55)
+    mom55 = prices_daily[["TLT", "USO", "GLD", "BIL"]].pct_change(55)
 
     weights = pd.DataFrame(0.0, index=prices_daily.index, columns=prices_daily.columns)
     is_bull = False
@@ -290,20 +289,18 @@ def zerolag_opt_weights(prices_daily, fred_data):
             is_bull = False
 
         if is_bull:
-            c_vol = vol20.iloc[i]
-            if not np.isnan(c_vol) and c_vol > 0.25:
-                weights.loc[d, "QQQ"] = 1.0  # 1x 안정 운용
-            else:
-                weights.loc[d, "QLD" if "QLD" in weights.columns else "QQQ"] = 1.0
+            weights.loc[d, "QQQ"] = 1.0
         else:
-            scores = mom55.loc[d].dropna().sort_values(ascending=False)
-            valid = scores[scores > 0]
-            if len(valid) >= 2:
-                weights.loc[d, valid.index[0]] = 0.5
-                weights.loc[d, valid.index[1]] = 0.5
-            elif len(valid) == 1:
-                weights.loc[d, valid.index[0]] = 0.5
-                weights.loc[d, "BIL" if "BIL" in weights.columns else "SHY"] = 0.5
+            # 방어 자산 중 BIL 제외 양수 자산 탐색
+            def_risky = [a for a in ["TLT", "USO", "GLD"] if a in mom55.columns and not np.isnan(mom55.loc[d, a]) and mom55.loc[d, a] > 0]
+            sorted_risky = mom55.loc[d, def_risky].sort_values(ascending=False) if def_risky else pd.Series(dtype=float)
+
+            if len(sorted_risky) >= 2:
+                weights.loc[d, sorted_risky.index[0]] = 0.5
+                weights.loc[d, sorted_risky.index[1]] = 0.5
+            elif len(sorted_risky) == 1:
+                weights.loc[d, sorted_risky.index[0]] = 0.5
+                weights.loc[d, "BIL" if "BIL" in weights.columns else "SHY"] += 0.5
             else:
                 weights.loc[d, "BIL" if "BIL" in weights.columns else "SHY"] = 1.0
     return weights
