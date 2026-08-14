@@ -1,0 +1,2 @@
+{"ts":"2026-08-14T10:36:55Z","error":"    46\t        except Exception:","fail":null,"platform":"codex"}
+{"ts":"2026-08-14T10:37:01Z","error":"src/notification/telegram_bot.py:124:    except Exception as e:","fail":null,"platform":"codex"}

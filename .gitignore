@@ -1,0 +1,29 @@
+# Byte-compiled / optimized / DLL files
+__pycache__/
+*.py[cod]
+*$py.class
+
+# Data caches and raw databases
+data/cache/
+data/processed/
+*.parquet
+*.db
+*.sqlite3
+
+# Environment variables & secrets
+.env
+.env.local
+
+# Logs and temporary files
+logs/
+*.log
+.system_generated/
+
+# Virtual environments
+venv/
+.venv/
+env/
+
+# OS specific
+.DS_Store
+Thumbs.db
