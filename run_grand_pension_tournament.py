@@ -295,12 +295,10 @@ def main():
         "2. Tyler Golden Butterfly (V1 정적)": gb_v1_weights,
         "3. Golden Butterfly (V2 동적 Top-3)": gb_opt_weights,
         "4. Harry Browne Permanent Port": permanent_portfolio_weights,
-        "5. Risk Parity (Inverse Vol 60D)": risk_parity_equal_vol_weights,
+        "5. Risk Parity (Equal Vol)": risk_parity_equal_vol_weights,
 
-        # [2. 켈러(Keller) 동적 모멘텀 패밀리]
+        # [2. 켈러(Keller) 동적 모멘텀 패밀리 (1.0x)]
         "6. Keller PAA (Protective G6)": keller_paa_weights,
-        "7. Keller VAA-G12 (Aggressive)": keller_vaa_g12_weights,
-        "8. Keller VAA-G4 (Balanced)": vaa_g1_original_weights,
         "9. Keller DAA (Dynamic Allocation)": keller_daa_weights,
         "10. Keller BAA Tuned (V1 2x)": baa_v1_weights,
         "11. Keller BAA-G4 (V2 3중방어)": baa_opt_weights,
